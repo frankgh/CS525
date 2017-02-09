@@ -13,13 +13,17 @@ def J(w, faces, labels, alpha=0.):
 
 
 def L(faces):
-    eigenvalues, eigenvectors = np.linalg.eig(np.cov(faces.T))
+    ALPHA = 0.85
+    cov = np.cov(faces.T) + ALPHA * np.eye(faces.shape[1])
+
+    eigenvalues, eigenvectors = np.linalg.eig(cov)
     i = eigenvalues.argsort()[-eigenvalues.shape[0]:][::-1]
     eigenvalues = eigenvalues[i]
     eigenvalues = np.power(eigenvalues, -0.5)
     eigenvalues = np.diag(eigenvalues)
     eigenvectors = eigenvectors[:, i]
-    return eigenvectors.dot(eigenvalues)
+
+    return np.real(np.dot(eigenvectors.dot(eigenvalues), eigenvectors.T))
 
 
 def gradJ(w, faces, labels, alpha=0.):
@@ -29,11 +33,8 @@ def gradJ(w, faces, labels, alpha=0.):
 def gradientDescent(trainingFaces, trainingLabels, testingFaces, testingLabels, alpha=0.):
     w1 = np.random.rand(trainingFaces.shape[1])
 
-    epsilon_1 = 1e-6 * 8
-    epsilon_2 = 1e-6 * 4
-    epsilon_3 = 1e-6
-    epsilon = epsilon_3
-    delta = 1e-4
+    epsilon = 2e-5
+    delta = 5e-3
     n = 0
 
     while True:
@@ -45,14 +46,6 @@ def gradientDescent(trainingFaces, trainingLabels, testingFaces, testingLabels, 
 
         norm = (w2 - w1)
         norm = np.sqrt(norm.T.dot(norm))
-
-        # terrible impl of adaptive learning rate
-        if cost_change > 4 * delta:
-            epsilon = epsilon_1
-        elif cost_change > 2.5 * delta:
-            epsilon = epsilon_2
-        else:
-            epsilon = epsilon_3
 
         if n % 100 == 0:
             print 'norm: {:f}, cost: {:f}, iterations: {}'.format(norm, J(w2, trainingFaces, trainingLabels, alpha), n)
@@ -76,7 +69,7 @@ def method2(trainingFaces, trainingLabels, testingFaces, testingLabels):
 
 
 def method3(trainingFaces, trainingLabels, testingFaces, testingLabels):
-    alpha = 837
+    alpha = 850
     return gradientDescent(trainingFaces, trainingLabels, testingFaces, testingLabels, alpha)
 
 
@@ -148,12 +141,16 @@ if __name__ == "__main__":
     whitenedTrainingFaces = trainingFaces.dot(l)
     whitenedTestingFaces = testingFaces.dot(l)
 
-    # w1 = method1(trainingFaces, trainingLabels, testingFaces, testingLabels)
-    # w2 = method2(whitenedTrainingFaces, trainingLabels, whitenedTestingFaces, testingLabels)
+    cov_whitened = np.cov(whitenedTrainingFaces.T)
+
+    w1 = method1(trainingFaces, trainingLabels, testingFaces, testingLabels)
+    w2 = method2(whitenedTrainingFaces, trainingLabels, whitenedTestingFaces, testingLabels)
     w3 = method3(whitenedTrainingFaces, trainingLabels, whitenedTestingFaces, testingLabels)
 
-    # for w in [w1, w2, w3]:
-    #     reportCosts(w, trainingFaces, trainingLabels, testingFaces, testingLabels)
+    reportCosts(w1, trainingFaces, trainingLabels, testingFaces, testingLabels)
+
+    for w in [w2, w3]:
+        reportCosts(w, whitenedTrainingFaces, trainingLabels, whitenedTestingFaces, testingLabels)
 
     # detectSmiles(w3)  # Requires OpenCV
     plot.show(plot.imshow(np.reshape(w3, (24, 24)), cmap='gray'))
